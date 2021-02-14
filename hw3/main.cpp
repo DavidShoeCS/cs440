@@ -8,7 +8,7 @@
 
 using namespace std;
 
-
+//class for an employee. Has id, name, bio, and manager id attributes.
 class Employee {
 	public:
 		int id;
@@ -28,7 +28,7 @@ class Employee {
 	}
 };
 
-
+//Class for a block that holds a list of employees
 class Block {
 	vector<Employee> records;
 	Block *overflow;
@@ -64,13 +64,13 @@ class Block {
 		}
 	}
 
-	void clearElements(vector<Employee> &v) {
+	void clearelems(vector<Employee> &v) {
 		for(int i = 0; i < records.size(); i++) {
 			v.push_back(records[i]);
 		}
 		records.clear();
 		if(overflow) {
-			overflow->clearElements(v);
+			overflow->clearelems(v);
 			delete overflow;
 			overflow = NULL;
 		}
@@ -145,7 +145,7 @@ class HashTable {
 			// split old bucket and rehash
 			k = buckets.size() - 1 - (1 << (numBits - 1));
 			vector<Employee> v;
-			buckets[k]->clearElements(v);
+			buckets[k]->clearelems(v);
 			for(unsigned int i = 0; i < v.size(); i++) {
 				buckets[hash(v[i].id)]->add(v[i]);
 			}
