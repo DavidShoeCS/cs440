@@ -1,32 +1,33 @@
 #include <iostream>
 #include <cstdlib>
 #include <fstream>
-#include <queue>
 #include <cmath>
 #include <string.h>
 #include <sstream>
 #include <vector>
-#include <ios>
 
 using namespace std;
+
 
 class Employee {
 	public:
 		int id;
 		string name;
 		string bio;
-		int mid;
+		int m_id;
+
 		Employee(int i, string n, string b, int mi) {
 			id = i;
 			name = n;
 			bio = b;
-			mid = mi;
+			m_id = mi;
 		}
 
 	string print() {
-		return to_string(id) + "|" + name + "|" + bio + "|" + to_string(mid);
+		return to_string(id) + "|" + name + "|" + bio + "|" + to_string(m_id);
 	}
 };
+
 
 class Block {
 	vector<Employee> records;
@@ -51,15 +52,15 @@ class Block {
 		return false;
 	}
 
-	void add(Employee e) {
+	void add(Employee emp) {
 		if(records.size() < 5) {
-			records.push_back(e);
+			records.push_back(emp);
 		}
 		else {
 			if(overflow == NULL) {
 				overflow = new Block();
 			}
-			overflow->add(e);
+			overflow->add(emp);
 		}
 	}
 
@@ -88,20 +89,21 @@ class Block {
 			}
 
 			node = node->overflow;
-			if (node)
-			{
+			if (node) {
 				output += ",";
 			}
 		}
+
 		return output;
 	}
 };
 
-class HashTable {
 
+class HashTable {
 	public:
 		int numRecords, numBits;
 		vector<Block *> buckets;
+
 		HashTable() {
 			numRecords = 0;
 			numBits = 1;
@@ -129,18 +131,15 @@ class HashTable {
 		return false;
 	}
 
-	void insert(Employee e) {
-		unsigned int k = hash(e.id);
+	void insert(Employee emp) {
+		unsigned int k = hash(emp.id);
 		if(k >= buckets.size()) {
 			k -= (1 << (numBits - 1));
 		}
-		// cout << "Adding: " << e.id << '\n';
-		buckets[k]->add(e);
+
+		buckets[k]->add(emp);
 		numRecords++;
 		while(occupancy() >= 80) {
-			// cout << "SPLITTING\n";
-			// cout << "Before\n";
-			// cout << print()+"\n";
 			buckets.push_back(new Block());
 			numBits = ceil(log2((double)buckets.size()));
 			// split old bucket and rehash
@@ -150,8 +149,6 @@ class HashTable {
 			for(unsigned int i = 0; i < v.size(); i++) {
 				buckets[hash(v[i].id)]->add(v[i]);
 			}
-			// cout << "After\n";
-			// cout << print()+"\n";
 		}
 	}
 
@@ -164,7 +161,7 @@ class HashTable {
 	}
 
 };
-HashTable h;
+HashTable ht;
 
 unsigned int hashLookup(int id, int lines) {
 	unsigned int mod = (1 << (int)ceil(log2(lines)));
@@ -172,129 +169,121 @@ unsigned int hashLookup(int id, int lines) {
 }
 
 
+void Create() {
+	ifstream infile("Employee.csv");
+	if(!infile.is_open()){
+			cerr << "Input file failed to open." << endl;
+			return;
+	}
+
+	int id, manager_id;
+	string name, bio, idstring, manager_idstring, line;
+
+	while(getline(infile, line)){
+			stringstream ss(line);
+			getline(ss, idstring, ',');
+			getline(ss, name, ',');
+			getline(ss, bio, ',');
+			getline(ss, manager_idstring, ',');
+			id = stoi(idstring);
+			manager_id = stoi(manager_idstring);
+
+			Employee emp(id, name, bio, manager_id);
+			ht.insert(emp);
+	}
+
+	ofstream outfile("EmployeeIndex.csv");
+	if(!outfile.is_open()){
+		cerr << "Output file failed to open." << endl;
+		return;
+	}
+
+	outfile << ht.print();
+	outfile.close();
+	infile.close();
+}
+
+
+void Lookup(char* argv2) {
+	string line;
+	ifstream count_lines_in_file("EmployeeIndex.csv");
+	int ctr = 0;
+	while(getline(count_lines_in_file, line)){
+		ctr++;
+
+	}
+	count_lines_in_file.close();
+
+	ifstream infile("EmployeeIndex.csv");
+	//fail to open EmployeeIndex.csv
+	if(!infile.is_open()){
+		cerr << "File failed to open" << endl;
+		return;
+	}
+
+	int lookup_id = stoi(argv2);
+	int number_of_buckets = ctr;
+
+	int index = hashLookup(lookup_id, number_of_buckets);
+	if(index >= number_of_buckets) {
+			index -= (1 << ((int)(ceil(log2(number_of_buckets))) - 1));
+	}
+
+	string hashvaluestring;
+	while(getline(infile, line)){
+
+    stringstream ss(line);
+		getline(ss,hashvaluestring,',');
+
+		//Get the line associated with the hashed version of the id we give our program.
+		if (stoi(hashvaluestring) == index){
+			//the values after bucket/hashed id number
+			string newline = line.substr(line.find(",")+1);
+
+			//seperate the the line of employees into a line for each employee
+			vector<string> v;
+			stringstream s_stream(newline);
+			while(s_stream.good()){
+				string substr;
+				getline(s_stream, substr, ',');
+				v.push_back(substr);
+			}
+
+			for (size_t i=0; i<v.size(); i++){
+				stringstream ss2(v[i]);
+				string id_var;
+
+				getline(ss2, id_var, '|');
+				if(id_var == string(argv2)){
+					//return employee
+					cout << v[i] << endl;
+				}
+			}
+		}
+	}
+	infile.close();
+}
 
 
 int main(int argc, char *argv[]) {
 
-
 		if((std::string(argv[1]) != "-C" && std::string(argv[1]) != "-L")) {
-			cout << "Usage : ./a.out [-C, -L] \n";
+			cerr << "Format: ./main.out [-C, -L] \n";
 			exit(-1);
 		}
 
 		if (string(argv[1]) == "-C") {
-        ifstream myFileStream("Employee.csv");
-        if(!myFileStream.is_open()){
-            cout << "File failed to open" << endl;
-            return 0;
-        }
-
-        int id, manager_id;
-        string name, bio, idstring, manager_idstring, line;
-
-        while(getline(myFileStream, line)){
-            stringstream ss(line);
-            getline(ss, idstring, ',');
-            getline(ss, name, ',');
-            getline(ss, bio, ',');
-            getline(ss, manager_idstring, ',');
-            id = stoi(idstring);
-            manager_id = stoi(manager_idstring);
-
-            Employee e(id, name, bio, manager_id);
-            h.insert(e);
-        }
-
-				ofstream outfile("EmployeeIndex.csv");
-				if(!outfile.is_open()){
-			    cout <<"File failed to open" << endl;
-			    return 0;
-			  }
-
-        outfile << h.print();
-				outfile.close();
-        myFileStream.close();
-
-    }
-
-
-
-
-		string line;
-		if(string(argv[1]) == "-L"){
+			Create();
+    } else if(string(argv[1]) == "-L"){
 			if(argc == 3){
-
-				ifstream count_lines_in_file("EmployeeIndex.csv");
-				int ctr = 0;
-				while(getline(count_lines_in_file, line)){
-					ctr++;
-
-				}
-				count_lines_in_file.close();
-
-
-				ifstream myFileStream("EmployeeIndex.csv");
-				//fail to open EmployeeIndex.csv
-				if(!myFileStream.is_open()){
-					cout <<"File failed to open" << endl;
-					return 0;
-				}
-
-				int lookup_id = stoi(argv[2]);
-				int number_of_buckets = ctr;
-
-				int index = hashLookup(lookup_id, number_of_buckets);
-				if(index >= number_of_buckets) {
-						index -= (1 << ((int)(ceil(log2(number_of_buckets))) - 1));
-				}
-				//cout << index << endl;
-
-				string hashvaluestring;
-				while(getline(myFileStream, line)){
-
-			    stringstream ss(line);
-					getline(ss,hashvaluestring,',');
-					//cout << hashvaluestring << endl;
-
-					//Get the line associated with the hashed version of the id we give our program.
-					//replace "0" with the string version of hashed id value we want
-					if (stoi(hashvaluestring) == index){
-						//the values after bucket/hashed id number
-						string newline = line.substr(line.find(",")+1);
-						//cout << newline << endl;
-
-						//seperate the the line of employees into a line for each employee
-						vector<string> v;
-						stringstream s_stream(newline);
-						while(s_stream.good()){
-							string substr;
-							getline(s_stream, substr, ',');
-							v.push_back(substr);
-						}
-						for (size_t i=0; i<v.size(); i++){
-							//cout << v[i] << endl;
-							stringstream ss2(v[i]);
-							string id_var;
-							getline(ss2, id_var, '|');
-
-							//cout << id_var << endl;
-							if(id_var == string(argv[2])){
-								cout << v[i] << endl;
-							}
-
-
-						}
-
-					}
-					}
-					myFileStream.close();
-
-			  }
-
+				Lookup(argv[2]);
+		  } else {
+				cerr << "Format: ./main.out -L [employee id]" << endl;
+				exit(-1);
 			}
-
-
-
-
+		} else {
+			cerr << "Format: ./main.out [-C, -L]" << endl;
+			exit(-1);
+		}
 	return 0;
 }
